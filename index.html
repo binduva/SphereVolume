@@ -1,0 +1,474 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Sphere Volume Calculator</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;600&display=swap">
+<style>
+/* Layout: a calculator with live sphere beside a step-by-step working; chart and reference values below. */
+:root {
+  --bg: #f3f6f7;
+  --surface: #ffffff;
+  --surface-2: #eaf1f3;
+  --fg: #12222c;
+  --muted: #566a76;
+  --line: #d5e0e5;
+  --accent: #0a7384;
+  --accent-ink: #ffffff;
+  --warm: #c85a17;
+  --sph-hi: #bfeaf0;
+  --sph-lo: #4aa6b8;
+  --font-display: "Space Grotesk", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Inter", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d181e; --surface: #14232b; --surface-2: #1b2f39; --fg: #e7eff3; --muted: #93a8b4;
+    --line: #28404b; --accent: #55c7d8; --accent-ink: #06222a; --warm: #f4a064;
+    --sph-hi: #5fc6d6; --sph-lo: #0f5666; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d181e; --surface: #14232b; --surface-2: #1b2f39; --fg: #e7eff3; --muted: #93a8b4;
+  --line: #28404b; --accent: #55c7d8; --accent-ink: #06222a; --warm: #f4a064;
+  --sph-hi: #5fc6d6; --sph-lo: #0f5666; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.55;
+  padding-block: 28px 40px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 1080px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+h1, h2 { font-family: var(--font-display); font-weight: 600; margin: 0; text-wrap: balance; }
+h1 { font-size: clamp(1.7rem, 4vw, 2.3rem); line-height: 1.15; letter-spacing: -0.01em; }
+h2 { font-size: 1.1rem; line-height: 1.3; }
+p { margin: 0; }
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.eyebrow { font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+
+header { display: flex; flex-direction: column; gap: 10px; }
+.formula {
+  display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  font-family: var(--font-mono); font-size: 1.05rem; color: var(--accent);
+}
+.lede { color: var(--muted); max-width: 62ch; }
+
+.grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.stack { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+@media (max-width: 860px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+
+.card {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+  padding: 20px; display: flex; flex-direction: column; gap: 16px; min-width: 0;
+}
+.card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+
+/* Inputs */
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; align-self: flex-start; }
+.seg label { position: relative; cursor: pointer; }
+.seg input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.seg span { display: block; padding: 7px 16px; font-weight: 500; color: var(--muted); background: var(--surface-2); }
+.seg input:checked + span { background: var(--accent); color: var(--accent-ink); }
+.seg input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: -3px; }
+
+.fields { display: grid; grid-template-columns: minmax(0, 1fr) 104px 92px; gap: 12px; align-items: end; }
+@media (max-width: 440px) { .fields { grid-template-columns: minmax(0, 1fr) 1fr; } .fields .f-value { grid-column: 1 / -1; } }
+.field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.field label { font-size: 0.8rem; font-weight: 600; color: var(--muted); }
+input[type="number"], select {
+  width: 100%; font: inherit; font-family: var(--font-mono); color: var(--fg);
+  background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px;
+}
+input[type="number"][aria-invalid="true"] { border-color: var(--warm); }
+input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+input[type="range"] { width: 100%; accent-color: var(--accent); margin: 0; }
+.err { min-height: 1.3em; color: var(--warm); font-size: 0.85rem; }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .err { color: #a8470f; } }
+:root[data-theme="light"] .err { color: #a8470f; }
+
+/* Result and sphere */
+.stage { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+.sphere-box { flex: 0 0 auto; width: 210px; max-width: 100%; }
+.sphere-box svg { display: block; width: 100%; height: auto; }
+.result { flex: 1 1 180px; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.result .big { font-family: var(--font-mono); font-size: clamp(1.5rem, 5vw, 2.1rem); font-weight: 500; color: var(--accent); overflow-wrap: anywhere; line-height: 1.2; }
+.result .sub { color: var(--muted); font-size: 0.88rem; }
+
+/* Steps */
+.controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+button {
+  font: inherit; font-weight: 500; cursor: pointer; padding: 7px 14px; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--surface-2); color: var(--fg);
+}
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+button:disabled { opacity: 0.45; cursor: default; }
+.progress { color: var(--muted); font-size: 0.85rem; margin-left: auto; }
+ol.steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+ol.steps li { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 12px; }
+.num {
+  width: 28px; height: 28px; border-radius: 50%; background: var(--surface-2); color: var(--accent);
+  border: 1px solid var(--line); display: grid; place-items: center; font-family: var(--font-mono); font-size: 0.85rem; font-weight: 500;
+}
+.step-title { font-weight: 600; }
+.math {
+  margin-top: 4px; font-family: var(--font-mono); font-size: 0.9rem; background: var(--surface-2);
+  border-radius: 8px; padding: 8px 10px; overflow-x: auto; white-space: nowrap; font-variant-numeric: tabular-nums;
+}
+.math .final { color: var(--accent); font-weight: 500; }
+ol.steps li.new .math { animation: pop 0.35s ease-out; }
+@keyframes pop { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { ol.steps li.new .math { animation: none; } }
+
+/* Chart */
+.chart { width: 100%; overflow-x: auto; }
+.chart svg { display: block; width: 100%; min-width: 420px; height: auto; }
+.g-grid { stroke: var(--line); stroke-width: 1; fill: none; }
+.g-axis { stroke: var(--muted); stroke-width: 1; fill: none; }
+.g-curve { stroke: var(--accent); stroke-width: 2.5; fill: none; }
+.g-area { fill: var(--accent); opacity: 0.12; }
+.g-guide { stroke: var(--warm); stroke-width: 1.2; stroke-dasharray: 4 4; fill: none; }
+.g-dot { fill: var(--warm); stroke: var(--surface); stroke-width: 2; }
+.g-text { fill: var(--muted); font-family: var(--font-mono); font-size: 11px; }
+.g-label { fill: var(--fg); font-family: var(--font-mono); font-size: 12px; }
+
+/* Sphere drawing */
+.s-body { stroke: var(--accent); stroke-width: 1.5; }
+.s-back { fill: none; stroke: var(--fg); stroke-opacity: 0.45; stroke-width: 1.2; stroke-dasharray: 4 4; }
+.s-front { fill: none; stroke: var(--fg); stroke-opacity: 0.7; stroke-width: 1.4; }
+.s-radius { stroke: var(--warm); stroke-width: 2.5; stroke-linecap: round; }
+.s-dot { fill: var(--warm); }
+.s-text { fill: var(--fg); font-family: var(--font-mono); font-size: 13px; }
+
+/* Insight and table */
+.bars { display: flex; flex-direction: column; gap: 12px; }
+.bar-row { display: flex; flex-direction: column; gap: 4px; }
+.bar-row .cap { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; font-size: 0.85rem; color: var(--muted); }
+.bar-row .cap b { color: var(--fg); font-weight: 500; }
+.track { height: 12px; background: var(--surface-2); border-radius: 6px; overflow: hidden; }
+.fill { height: 100%; background: var(--accent); border-radius: 6px; transition: width 0.3s; }
+.fill.two { background: var(--warm); }
+@media (prefers-reduced-motion: reduce) { .fill { transition: none; } }
+.tbl { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-family: var(--font-mono); font-size: 0.88rem; font-variant-numeric: tabular-nums; }
+th, td { text-align: right; padding: 7px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; }
+th { color: var(--muted); font-weight: 500; font-size: 0.78rem; }
+</style>
+
+<div class="wrap">
+  <header>
+    <span class="eyebrow">Geometry demo</span>
+    <h1>Volume of a sphere</h1>
+    <div class="formula" aria-label="Formula: V equals four thirds pi r cubed">V = (4/3) × π × r³</div>
+    <p class="lede">Enter a radius or a diameter and watch the sphere, the working, and the graph update together.</p>
+  </header>
+
+  <div class="grid">
+    <section class="card" aria-labelledby="calc-h">
+      <div class="card-head"><h2 id="calc-h">Calculator</h2></div>
+
+      <div class="seg" role="radiogroup" aria-label="What you know">
+        <label><input type="radio" name="mode" value="radius" checked><span>Radius</span></label>
+        <label><input type="radio" name="mode" value="diameter"><span>Diameter</span></label>
+      </div>
+
+      <div class="fields">
+        <div class="field f-value">
+          <label for="value" id="valueLabel">Radius</label>
+          <input id="value" type="number" inputmode="decimal" min="0" max="100000" step="any" value="5">
+        </div>
+        <div class="field">
+          <label for="unit">Unit</label>
+          <select id="unit">
+            <option value="mm">mm</option>
+            <option value="cm" selected>cm</option>
+            <option value="m">m</option>
+            <option value="in">in</option>
+            <option value="ft">ft</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="dec">Decimals</label>
+          <select id="dec">
+            <option value="0">0</option>
+            <option value="1">1</option>
+            <option value="2" selected>2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+          </select>
+        </div>
+      </div>
+      <input id="range" type="range" min="0" max="20" step="0.1" value="5" aria-label="Adjust the size with a slider">
+      <div class="err" id="err" role="alert"></div>
+
+      <div class="stage">
+        <div class="sphere-box">
+          <svg id="sphere" viewBox="0 0 260 270" role="img" aria-label="Sphere with its radius marked">
+            <defs>
+              <radialGradient id="sg" cx="35%" cy="30%" r="75%">
+                <stop offset="0%" style="stop-color: var(--sph-hi)"></stop>
+                <stop offset="100%" style="stop-color: var(--sph-lo)"></stop>
+              </radialGradient>
+            </defs>
+            <circle id="sBody" class="s-body" cx="130" cy="125" r="80" fill="url(#sg)"></circle>
+            <path id="sBack" class="s-back" d=""></path>
+            <path id="sFront" class="s-front" d=""></path>
+            <line id="sRad" class="s-radius" x1="130" y1="125" x2="210" y2="125"></line>
+            <circle id="sDot" class="s-dot" cx="130" cy="125" r="4"></circle>
+            <text id="sR" class="s-text" x="170" y="117" text-anchor="middle">r</text>
+            <text id="sCap" class="s-text" x="130" y="258" text-anchor="middle"></text>
+          </svg>
+        </div>
+        <div class="result" aria-live="polite">
+          <span class="eyebrow">Volume</span>
+          <span class="big" id="volume">523.60 cm³</span>
+          <span class="sub" id="litres"></span>
+          <span class="sub" id="cubes"></span>
+        </div>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="steps-h">
+      <div class="card-head"><h2 id="steps-h">Working, step by step</h2></div>
+      <div class="controls">
+        <button type="button" id="restart">Start over</button>
+        <button type="button" id="next" class="primary">Next step</button>
+        <button type="button" id="all">Show all</button>
+        <span class="progress" id="progress" aria-live="polite"></span>
+      </div>
+      <ol class="steps" id="steps"></ol>
+    </section>
+  </div>
+
+  <div class="grid">
+    <section class="card" aria-labelledby="chart-h">
+      <div class="card-head">
+        <h2 id="chart-h">Volume grows with the cube of the radius</h2>
+      </div>
+      <div class="chart"><svg id="chart" viewBox="0 0 560 320" role="img" aria-label="Graph of volume against radius with the current sphere marked"></svg></div>
+    </section>
+
+    <div class="stack">
+      <section class="card" aria-labelledby="dbl-h">
+        <h2 id="dbl-h">Double the radius</h2>
+        <div class="bars">
+          <div class="bar-row">
+            <div class="cap"><span id="capA"></span><b id="valA"></b></div>
+            <div class="track"><div class="fill" id="barA" style="width: 12.5%"></div></div>
+          </div>
+          <div class="bar-row">
+            <div class="cap"><span id="capB"></span><b id="valB"></b></div>
+            <div class="track"><div class="fill two" id="barB" style="width: 100%"></div></div>
+          </div>
+        </div>
+        <p class="lede">Twice the radius means 2³ = 8 times the volume.</p>
+      </section>
+
+      <section class="card" aria-labelledby="ref-h">
+        <h2 id="ref-h">Reference values</h2>
+        <div class="tbl">
+          <table>
+            <thead><tr><th>Radius</th><th id="thV">Volume</th></tr></thead>
+            <tbody id="refBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var UNIT_M = { mm: 0.001, cm: 0.01, m: 1, "in": 0.0254, ft: 0.3048 };
+  var mode = "radius";
+  var shown = 5;
+  var TOTAL = 5;
+  var lastValid = null;
+
+  function nf(x, d) {
+    return new Intl.NumberFormat("en-US", { minimumFractionDigits: d, maximumFractionDigits: d }).format(x);
+  }
+  function fs(x) {
+    return new Intl.NumberFormat("en-US", { maximumFractionDigits: 4 }).format(x);
+  }
+  function compact(x) {
+    return new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(x);
+  }
+  function niceCeil(v) {
+    var p = Math.pow(10, Math.floor(Math.log10(v)));
+    var n = v / p;
+    var m = n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10;
+    return m * p;
+  }
+  function vol(r) { return (4 / 3) * Math.PI * r * r * r; }
+
+  function read() {
+    var raw = $("value").value;
+    var x = parseFloat(raw);
+    if (raw === "" || !isFinite(x)) return { error: "Enter a number to calculate the volume." };
+    if (x < 0) return { error: "Size cannot be negative. Enter 0 or more." };
+    if (x > 100000) return { error: "Enter a value up to 100,000." };
+    var r = mode === "radius" ? x : x / 2;
+    return { input: x, r: r, v: vol(r) };
+  }
+
+  function drawSphere(r, unit) {
+    var cx = 130, cy = 125;
+    var R = 34 + 76 * Math.min(r / 20, 1);
+    var ry = R * 0.28;
+    $("sBody").setAttribute("r", R);
+    $("sBack").setAttribute("d", "M " + (cx - R) + " " + cy + " A " + R + " " + ry + " 0 0 1 " + (cx + R) + " " + cy);
+    $("sFront").setAttribute("d", "M " + (cx - R) + " " + cy + " A " + R + " " + ry + " 0 0 0 " + (cx + R) + " " + cy);
+    $("sRad").setAttribute("x2", cx + R);
+    $("sR").setAttribute("x", cx + R / 2);
+    $("sCap").textContent = "r = " + fs(r) + " " + unit;
+  }
+
+  function stepData(s, unit, d) {
+    var u3 = unit + "³";
+    var k = (4 * Math.PI) / 3;
+    var r = s.r, r3 = r * r * r;
+    var s2 = mode === "radius"
+      ? "r = " + fs(r) + " " + unit
+      : "r = d ÷ 2 = " + fs(s.input) + " ÷ 2 = " + fs(r) + " " + unit;
+    return [
+      { t: "Start with the formula", m: "V = (4/3) × π × r³" },
+      { t: mode === "radius" ? "Note the radius" : "Halve the diameter to get the radius", m: s2 },
+      { t: "Cube the radius", m: "r³ = " + fs(r) + " × " + fs(r) + " × " + fs(r) + " = " + fs(r3) + " " + u3 },
+      { t: "Multiply by 4π ÷ 3", m: "4π ÷ 3 ≈ " + nf(k, 5) + "<br>V ≈ " + nf(k, 5) + " × " + fs(r3) + " = " + fs(s.v) + " " + u3 },
+      { t: "Round and add the unit", m: "<span class=\"final\">V ≈ " + nf(s.v, d) + " " + u3 + "</span>" }
+    ];
+  }
+
+  var lastShown = TOTAL;
+  function renderSteps(s, unit, d) {
+    var data = stepData(s, unit, d);
+    var html = "";
+    for (var i = 0; i < data.length; i++) {
+      html += "<li data-i=\"" + i + "\"" + (i >= shown ? " hidden" : "") + "><span class=\"num\">" + (i + 1) + "</span><div><div class=\"step-title\">" + data[i].t + "</div><div class=\"math\">" + data[i].m + "</div></div></li>";
+    }
+    $("steps").innerHTML = html;
+    if (shown > lastShown) {
+      var li = $("steps").querySelector("li[data-i=\"" + (shown - 1) + "\"]");
+      if (li) li.classList.add("new");
+    }
+    lastShown = shown;
+    $("progress").textContent = shown >= TOTAL ? "All " + TOTAL + " steps shown" : "Step " + shown + " of " + TOTAL;
+    $("next").disabled = shown >= TOTAL;
+    $("restart").disabled = shown <= 1;
+    $("all").disabled = shown >= TOTAL;
+  }
+
+  function drawChart(r, unit) {
+    var W = 470, H = 256, L = 72, T = 16;
+    var xmax = niceCeil(Math.max(r * 1.25, 1));
+    var ymax = vol(xmax);
+    var X = function (v) { return L + (v / xmax) * W; };
+    var Y = function (v) { return T + H - (v / ymax) * H; };
+    var out = "";
+    var i;
+    for (i = 0; i <= 4; i++) {
+      var yv = (ymax * i) / 4, yy = Y(yv);
+      out += "<line class=\"g-grid\" x1=\"" + L + "\" y1=\"" + yy + "\" x2=\"" + (L + W) + "\" y2=\"" + yy + "\"></line>";
+      out += "<text class=\"g-text\" x=\"" + (L - 8) + "\" y=\"" + (yy + 4) + "\" text-anchor=\"end\">" + compact(yv) + "</text>";
+    }
+    for (i = 0; i <= 5; i++) {
+      var xv = (xmax * i) / 5, xx = X(xv);
+      out += "<line class=\"g-axis\" x1=\"" + xx + "\" y1=\"" + (T + H) + "\" x2=\"" + xx + "\" y2=\"" + (T + H + 4) + "\"></line>";
+      out += "<text class=\"g-text\" x=\"" + xx + "\" y=\"" + (T + H + 18) + "\" text-anchor=\"middle\">" + fs(xv) + "</text>";
+    }
+    out += "<line class=\"g-axis\" x1=\"" + L + "\" y1=\"" + (T + H) + "\" x2=\"" + (L + W) + "\" y2=\"" + (T + H) + "\"></line>";
+    out += "<line class=\"g-axis\" x1=\"" + L + "\" y1=\"" + T + "\" x2=\"" + L + "\" y2=\"" + (T + H) + "\"></line>";
+    var pts = [];
+    for (i = 0; i <= 60; i++) { var v = (xmax * i) / 60; pts.push(X(v).toFixed(1) + "," + Y(vol(v)).toFixed(1)); }
+    out += "<polygon class=\"g-area\" points=\"" + X(0) + "," + (T + H) + " " + pts.join(" ") + " " + X(xmax) + "," + (T + H) + "\"></polygon>";
+    out += "<polyline class=\"g-curve\" points=\"" + pts.join(" ") + "\"></polyline>";
+    if (r > 0) {
+      var mx = X(r), my = Y(vol(r));
+      out += "<line class=\"g-guide\" x1=\"" + mx + "\" y1=\"" + my + "\" x2=\"" + mx + "\" y2=\"" + (T + H) + "\"></line>";
+      out += "<line class=\"g-guide\" x1=\"" + mx + "\" y1=\"" + my + "\" x2=\"" + L + "\" y2=\"" + my + "\"></line>";
+      out += "<circle class=\"g-dot\" cx=\"" + mx + "\" cy=\"" + my + "\" r=\"6\"></circle>";
+      out += "<text class=\"g-label\" x=\"" + (mx - 12) + "\" y=\"" + (my - 10) + "\" text-anchor=\"end\">r = " + fs(r) + "</text>";
+    }
+    out += "<text class=\"g-text\" x=\"" + (L + W / 2) + "\" y=\"" + (T + H + 40) + "\" text-anchor=\"middle\">radius r (" + unit + ")</text>";
+    out += "<text class=\"g-text\" x=\"14\" y=\"" + (T + H / 2) + "\" text-anchor=\"middle\" transform=\"rotate(-90 14 " + (T + H / 2) + ")\">volume V (" + unit + "³)</text>";
+    $("chart").innerHTML = out;
+  }
+
+  function drawExtras(s, unit, d) {
+    var u3 = unit + "³";
+    $("capA").textContent = "r = " + fs(s.r) + " " + unit;
+    $("valA").textContent = nf(s.v, d) + " " + u3;
+    $("capB").textContent = "2r = " + fs(s.r * 2) + " " + unit;
+    $("valB").textContent = nf(s.v * 8, d) + " " + u3;
+    var rows = "";
+    for (var i = 1; i <= 5; i++) rows += "<tr><td>" + i + " " + unit + "</td><td>" + nf(vol(i), d) + " " + u3 + "</td></tr>";
+    $("refBody").innerHTML = rows;
+    $("thV").textContent = "Volume (" + u3 + ")";
+  }
+
+  function update() {
+    var unit = $("unit").value;
+    var d = parseInt($("dec").value, 10);
+    var s = read();
+    var inp = $("value");
+    if (s.error) {
+      $("err").textContent = s.error;
+      inp.setAttribute("aria-invalid", "true");
+      $("volume").textContent = "—";
+      $("litres").textContent = "";
+      $("cubes").textContent = "";
+      return;
+    }
+    $("err").textContent = "";
+    inp.removeAttribute("aria-invalid");
+    lastValid = s;
+    var u3 = unit + "³";
+    $("volume").textContent = nf(s.v, d) + " " + u3;
+
+    var litres = s.v * Math.pow(UNIT_M[unit], 3) * 1000;
+    if (litres >= 1) $("litres").textContent = "≈ " + nf(litres, 2) + " litres of water";
+    else $("litres").textContent = "≈ " + nf(litres * 1000, 1) + " mL of water";
+    $("cubes").textContent = s.r > 0 ? "Equal to " + nf(s.v / (s.r * s.r * s.r), 3) + " cubes of side r" : "";
+
+    var rng = $("range");
+    rng.value = s.input;
+
+    drawSphere(s.r, unit);
+    renderSteps(s, unit, d);
+    drawChart(s.r, unit);
+    drawExtras(s, unit, d);
+  }
+
+  function setMode(m) {
+    var s = lastValid;
+    mode = m;
+    $("valueLabel").textContent = m === "radius" ? "Radius" : "Diameter";
+    $("range").max = m === "radius" ? 20 : 40;
+    if (s) $("value").value = m === "radius" ? s.r : s.r * 2;
+    update();
+  }
+
+  document.querySelectorAll("input[name=mode]").forEach(function (el) {
+    el.addEventListener("change", function () { if (el.checked) setMode(el.value); });
+  });
+  $("value").addEventListener("input", update);
+  $("range").addEventListener("input", function () { $("value").value = $("range").value; update(); });
+  $("unit").addEventListener("change", update);
+  $("dec").addEventListener("change", update);
+  $("next").addEventListener("click", function () { shown = Math.min(TOTAL, shown + 1); update(); });
+  $("restart").addEventListener("click", function () { shown = 1; lastShown = 1; update(); });
+  $("all").addEventListener("click", function () { shown = TOTAL; update(); });
+
+  update();
+})();
+</script>
+
+</body></html>
